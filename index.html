@@ -183,7 +183,7 @@
     </div>
 
     <script>
-        const pdfUrl = 'KatalogTefa.pdf'; 
+        const pdfUrl = 'presentasi.pdf'; 
         
         const flipbookContainer = document.getElementById('my-flipbook');
         const loadingText = document.getElementById('loading');
@@ -225,7 +225,7 @@
                 initFlipbook();
             } catch (error) {
                 console.error(error);
-                loadingText.innerHTML = `<p style="color:red; padding:20px;">Gagal memuat PDF. <br> Periksa apakah file <b>KatalogTefa.pdf</b> sudah ada di folder yang sama.</p>`;
+                loadingText.innerHTML = `<p style="color:red; padding:20px;">Gagal memuat PDF. <br> Periksa apakah file <b>presentasi.pdf</b> sudah ada di folder yang sama.</p>`;
             }
         }
 
