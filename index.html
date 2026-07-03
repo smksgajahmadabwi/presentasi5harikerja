@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presentasi - SMK Gajah Mada Banyuwangi</title>
+    <title>PDF Landscape - SMK Gajah Mada Banyuwangi</title>
     
-    <!-- Library Page-Flip & PDF.js -->
-    <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
+    <!-- Library PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <style>
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0;
-            padding: 0;
             background-color: #1a1a1a;
             display: flex;
             flex-direction: column;
@@ -24,51 +23,45 @@
             justify-content: center;
             width: 100vw;
             height: 100vh;
-            overflow: hidden; /* Mencegah scrollbar pada halaman utama */
+            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
 
         #container {
             width: 100%;
-            /* Menggunakan sisa ruang vertikal setelah dikurangi tinggi navigasi bawah */
-            height: calc(100vh - 90px); 
+            height: calc(100vh - 80px);
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 15px;
+            padding: 20px;
         }
 
-        #my-flipbook {
-            box-shadow: 0 0 30px rgba(0,0,0,0.7);
-            display: none; 
+        #pdf-viewer {
             width: 100%;
             height: 100%;
-        }
-
-        .page-wrapper {
-            background-color: white;
-            width: 100%;
-            height: 100%;
+            background: white;
+            box-shadow: 0 0 40px rgba(0,0,0,0.7);
+            border-radius: 8px;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            position: relative;
         }
 
         canvas {
             width: 100%;
             height: 100%;
             display: block;
-            object-fit: contain; /* Memastikan isi canvas menyesuaikan area */
+            object-fit: contain;
         }
 
         #loading {
             color: white;
             text-align: center;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            z-index: 10;
         }
 
         .nav-controls {
@@ -78,7 +71,7 @@
             align-items: center;
             gap: 20px;
             background: rgba(0, 0, 0, 0.85);
-            padding: 10px 20px;
+            padding: 12px 25px;
             border-radius: 50px;
             border: 1px solid #f1c40f;
             z-index: 1000;
@@ -89,12 +82,13 @@
             background: #f1c40f;
             color: #000;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 25px;
             border-radius: 25px;
             cursor: pointer;
             font-weight: bold;
             text-transform: uppercase;
             transition: transform 0.2s, background 0.2s;
+            font-size: 0.9rem;
         }
 
         .nav-btn:hover {
@@ -102,10 +96,16 @@
             transform: scale(1.05);
         }
 
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .page-info {
             color: white;
             font-size: 0.9rem;
-            min-width: 100px;
+            min-width: 80px;
             text-align: center;
         }
 
@@ -114,39 +114,49 @@
                 padding: 8px 15px;
                 font-size: 0.7rem;
             }
+            .nav-controls {
+                gap: 12px;
+                padding: 10px 15px;
+            }
         }
     </style>
 </head>
 <body>
 
     <div id="loading">
-        <p>Sedang menyiapkan file PDF...</p>
+        <p>📄 Sedang menyiapkan PDF...</p>
+        <div style="margin-top: 10px; font-size: 0.9rem; color: #aaa;">Mohon tunggu sebentar</div>
     </div>
 
     <div id="container">
-        <div id="my-flipbook"></div>
+        <div id="pdf-viewer">
+            <canvas id="pdf-canvas"></canvas>
+        </div>
     </div>
 
-    <div class="nav-controls" id="nav-ui" style="display: none;">
-        <button class="nav-btn" id="btn-prev">PREV</button>
+    <div class="nav-controls" id="nav-ui">
+        <button class="nav-btn" id="btn-zoom-out">➖</button>
+        <button class="nav-btn" id="btn-reset">⟲ Reset</button>
+        <button class="nav-btn" id="btn-zoom-in">➕</button>
         <div class="page-info">
-            Halaman: <span id="page-current">1</span> / <span id="page-total">0</span>
+            <span id="zoom-level">100%</span>
         </div>
-        <button class="nav-btn" id="btn-next">NEXT</button>
     </div>
 
     <script>
-        const pdfUrl = 'presentasi.pdf'; 
+        const pdfUrl = 'presentasi.pdf';
         
-        const flipbookContainer = document.getElementById('my-flipbook');
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
         const loadingText = document.getElementById('loading');
-        const navUI = document.getElementById('nav-ui');
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
-        const pageCurrent = document.getElementById('page-current');
-        const pageTotal = document.getElementById('page-total');
+        const zoomLevel = document.getElementById('zoom-level');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+        const btnReset = document.getElementById('btn-reset');
 
-        let pageFlip = null;
+        let pdfDoc = null;
+        let currentScale = 1.0;
+        const baseScale = 1.0;
 
         async function renderPDF() {
             const pdfjsLib = window['pdfjs-dist/build/pdf'];
@@ -154,82 +164,98 @@
 
             try {
                 const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-                const totalPages = pdf.numPages;
-                pageTotal.innerText = totalPages;
-
-                const firstPage = await pdf.getPage(1);
-                const standardViewport = firstPage.getViewport({ scale: 2 }); // Menggunakan skala render yang lebih tinggi untuk ketajaman
-                const pageWidth = standardViewport.width;
-                const pageHeight = standardViewport.height;
-
-                for (let i = 1; i <= totalPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 2 });
-
-                    const pageDiv = document.createElement('div');
-                    pageDiv.className = 'page-wrapper';
-                    
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    
-                    pageDiv.appendChild(canvas);
-                    flipbookContainer.appendChild(pageDiv);
-                }
-
-                initFlipbook(pageWidth, pageHeight);
+                pdfDoc = pdf;
+                loadingText.style.display = 'none';
+                renderPage(1);
             } catch (error) {
                 console.error(error);
                 loadingText.innerHTML = `
-                    <div style="color:#ff6b6b; padding:20px; max-width: 500px; margin: 0 auto; line-height: 1.6;">
-                        <p><b>Gagal memuat dokumen PDF.</b></p>
-                        <p style="font-size: 0.9rem; text-align: left; color: #ccc;">
+                    <div style="color:#ff6b6b; padding:20px; max-width: 500px; margin: 0 auto; line-height: 1.6; background: rgba(0,0,0,0.8); border-radius: 12px;">
+                        <p><b>❌ Gagal memuat dokumen PDF.</b></p>
+                        <p style="font-size: 0.9rem; text-align: left; color: #ccc; margin-top: 10px;">
                             1. Pastikan file <b>presentasi.pdf</b> berada di folder yang sama dengan file HTML ini.<br>
                             2. Pastikan penulisan nama file sudah sama persis.<br>
-                            3. Gunakan lokal server seperti ekstensi <b>Live Server</b> di VS Code jika dijalankan di komputer lokal agar tidak diblokir oleh kebijakan keamanan browser.
+                            3. Gunakan lokal server seperti ekstensi <b>Live Server</b> di VS Code agar tidak diblokir oleh kebijakan keamanan browser.
                         </p>
                     </div>`;
             }
         }
 
-        function initFlipbook(width, height) {
-            loadingText.style.display = 'none';
-            flipbookContainer.style.display = 'block';
-            navUI.style.display = 'flex';
+        function renderPage(pageNum) {
+            if (!pdfDoc) return;
 
-            pageFlip = new St.PageFlip(flipbookContainer, {
-                width: width, 
-                height: height,
-                mode: "portrait", 
-                size: "stretch", // Memungkinkan flipbook meregang mengikuti ukuran kontainer induknya
-                minWidth: 100, 
-                maxWidth: 3000, // Ditingkatkan batas maksimalnya agar dapat menyesuaikan layar besar
-                minHeight: 100,
-                maxHeight: 3000, 
-                showCover: false, 
-                maxShadowOpacity: 0.2, 
-                mobileScrollSupport: false,
-                clickEventForward: false, 
-                useMouseEvents: true 
-            });
+            const container = document.getElementById('pdf-viewer');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
 
-            pageFlip.loadFromHTML(document.querySelectorAll('.page-wrapper'));
+            pdfDoc.getPage(pageNum).then(page => {
+                // Hitung skala agar muat penuh di container (landscape)
+                const viewport = page.getViewport({ scale: 1 });
+                const widthRatio = containerWidth / viewport.width;
+                const heightRatio = containerHeight / viewport.height;
+                const fitScale = Math.min(widthRatio, heightRatio) * currentScale;
 
-            pageFlip.on('flip', (e) => {
-                pageCurrent.innerText = e.data + 1;
-            });
+                const scaledViewport = page.getViewport({ scale: fitScale });
+                
+                canvas.width = scaledViewport.width;
+                canvas.height = scaledViewport.height;
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
 
-            btnNext.addEventListener('click', () => {
-                pageFlip.flipNext();
-            });
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: scaledViewport
+                };
 
-            btnPrev.addEventListener('click', () => {
-                pageFlip.flipPrev();
+                page.render(renderContext).promise.then(() => {
+                    zoomLevel.textContent = Math.round(fitScale / Math.min(widthRatio, heightRatio) * 100) + '%';
+                });
             });
         }
+
+        // Event resize untuk render ulang
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (pdfDoc) renderPage(1);
+            }, 200);
+        });
+
+        // Kontrol zoom
+        btnZoomIn.addEventListener('click', () => {
+            currentScale = Math.min(currentScale + 0.1, 3.0);
+            if (pdfDoc) renderPage(1);
+        });
+
+        btnZoomOut.addEventListener('click', () => {
+            currentScale = Math.max(currentScale - 0.1, 0.3);
+            if (pdfDoc) renderPage(1);
+        });
+
+        btnReset.addEventListener('click', () => {
+            currentScale = 1.0;
+            if (pdfDoc) renderPage(1);
+        });
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                btnZoomIn.click();
+            } else if (e.key === '-') {
+                e.preventDefault();
+                btnZoomOut.click();
+            } else if (e.key === '0') {
+                e.preventDefault();
+                btnReset.click();
+            }
+        });
+
+        // Render ulang saat pertama kali container terlihat
+        setTimeout(() => {
+            if (pdfDoc) renderPage(1);
+        }, 100);
 
         renderPDF();
     </script>
