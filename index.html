@@ -3,55 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML5 PDF Flipbook</title>
+    <title>Presentasi - SMK Gajah Mada</title>
     
-    <!-- Library Page-Flip -->
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
-    <!-- Library PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .header {
+            width: 100%;
+            background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
+            padding: 15px 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center; 
+            z-index: 100;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 1000px; 
+            gap: 15px;
+        }
+
+        .logo-header {
+            height: 70px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .title-container {
+            text-align: center;
+            flex: 1;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            color: #f1c40f; 
+            text-transform: uppercase;
+        }
+
+        .header h2 {
+            margin: 5px 0 0 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            opacity: 0.9;
+        }
+
+        #container {
+            flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #333;
-            font-family: sans-serif;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            margin-bottom: 80px; 
         }
 
-        #canvas-container {
-            width: 90vw;
-            height: 90vh;
-            display: none; /* Sembunyikan sampai PDF dimuat */
+        #my-flipbook {
+            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+            display: none; 
         }
 
-        .page-content {
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        .page-wrapper {
+            background-color: white;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         #loading {
             color: white;
-            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .nav-controls {
+            position: fixed;
+            bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid #f1c40f;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .nav-btn {
+            background: #f1c40f;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #d4ac0d;
+            transform: scale(1.05);
+        }
+
+        .page-info {
+            color: white;
+            font-size: 0.9rem;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .logo-header {
+                height: 45px; 
+            }
+            .header h1 {
+                font-size: 0.9rem;
+                letter-spacing: 0.5px;
+            }
+            .header h2 {
+                font-size: 0.7rem;
+            }
+            .header-container {
+                gap: 8px;
+            }
+            .nav-btn {
+                padding: 8px 15px;
+                font-size: 0.7rem;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div id="loading">Memuat PDF...</div>
-    
-    <!-- Wadah Flipbook -->
-    <div id="book-container">
+    <div id="loading">
+        <p>Sedang menyiapkan katalog...</p>
+    </div>
+
+    <div id="container">
         <div id="my-flipbook"></div>
     </div>
 
-    <script>
-        // GANTI INI dengan lokasi file PDF Anda
-        const pdfUrl = 'https://github.com/smksgajahmadabwi/presentasi5harikerja/blob/main/presentasi.pdf';
+    <div class="nav-controls" id="nav-ui" style="display: none;">
+        <button class="nav-btn" id="btn-prev">PREV</button>
+        <div class="page-info">
+            Halaman: <span id="page-current">1</span> / <span id="page-total">0</span>
+        </div>
+        <button class="nav-btn" id="btn-next">NEXT</button>
+    </div>
 
+    <script>
+        const pdfUrl = 'KatalogTefa.pdf'; 
+        
         const flipbookContainer = document.getElementById('my-flipbook');
         const loadingText = document.getElementById('loading');
+        const navUI = document.getElementById('nav-ui');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const pageCurrent = document.getElementById('page-current');
+        const pageTotal = document.getElementById('page-total');
+
+        let pageFlip = null;
 
         async function renderPDF() {
             const pdfjsLib = window['pdfjs-dist/build/pdf'];
@@ -60,50 +202,67 @@
             try {
                 const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
                 const totalPages = pdf.numPages;
+                pageTotal.innerText = totalPages;
 
-                // Loop setiap halaman PDF dan buat elemen canvas
                 for (let i = 1; i <= totalPages; i++) {
                     const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    const viewport = page.getViewport({ scale: 2 });
 
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'page-wrapper';
+                    
                     const canvas = document.createElement('canvas');
-                    canvas.className = 'page-content';
                     const context = canvas.getContext('2d');
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
 
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
                     
-                    // Masukkan canvas ke dalam div flipbook
-                    const pageDiv = document.createElement('div');
                     pageDiv.appendChild(canvas);
                     flipbookContainer.appendChild(pageDiv);
                 }
 
                 initFlipbook();
             } catch (error) {
-                console.error("Error loading PDF: ", error);
-                loadingText.innerText = "Gagal memuat PDF. Pastikan URL benar dan izin CORS tersedia.";
+                console.error(error);
+                loadingText.innerHTML = `<p style="color:red; padding:20px;">Gagal memuat PDF. <br> Periksa apakah file <b>KatalogTefa.pdf</b> sudah ada di folder yang sama.</p>`;
             }
         }
 
         function initFlipbook() {
             loadingText.style.display = 'none';
-            
-            const pageFlip = new St.PageFlip(flipbookContainer, {
-                width: 600, // Ukuran lebar satu halaman
-                height: 800, // Ukuran tinggi satu halaman
+            flipbookContainer.style.display = 'block';
+            navUI.style.display = 'flex';
+
+            pageFlip = new St.PageFlip(flipbookContainer, {
+                width: 1080, 
+                height: 1650,
+                mode: "portrait", 
                 size: "stretch",
-                minWidth: 315,
-                maxWidth: 1000,
-                minHeight: 420,
-                maxHeight: 1350,
-                maxShadowOpacity: 0.5,
-                showCover: true,
-                mobileScrollSupport: false
+                minWidth: 300, 
+                maxWidth: 1080, 
+                minHeight: 480,
+                maxHeight: 1650, 
+                showCover: false, 
+                maxShadowOpacity: 0.2, 
+                mobileScrollSupport: false,
+                clickEventForward: false, 
+                useMouseEvents: true 
             });
 
-            pageFlip.loadFromHTML(document.querySelectorAll('.page-content'));
+            pageFlip.loadFromHTML(document.querySelectorAll('.page-wrapper'));
+
+            pageFlip.on('flip', (e) => {
+                pageCurrent.innerText = e.data + 1;
+            });
+
+            btnNext.addEventListener('click', () => {
+                pageFlip.flipNext();
+            });
+
+            btnPrev.addEventListener('click', () => {
+                pageFlip.flipPrev();
+            });
         }
 
         renderPDF();
