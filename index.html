@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flipbook PDF - SMK Gajah Mada Banyuwangi</title>
     
-    <!-- Library untuk Flipbook -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@0.3.4/dist/css/page-flip.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/page-flip@0.3.4/dist/js/page-flip.min.js"></script>
+    <!-- Library PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <style>
@@ -27,6 +25,7 @@
             height: 100vh;
             overflow: hidden;
             font-family: 'Segoe UI', Arial, sans-serif;
+            user-select: none;
         }
 
         #container {
@@ -36,31 +35,77 @@
             justify-content: center;
             align-items: center;
             position: relative;
+            background: #2a2a2a;
         }
 
         #flipbook {
             width: 100%;
             height: 100%;
-            background: #2a2a2a;
             position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        .page-wrapper {
-            background: white;
+        .page-container {
+            position: absolute;
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: left center;
+            backface-visibility: hidden;
+            pointer-events: none;
+        }
+
+        .page-container.active {
+            pointer-events: auto;
+        }
+
+        .page-container.hidden {
+            display: none;
+        }
+
+        .page-container.flipping {
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .page-content {
+            background: white;
+            width: 95%;
+            height: 95%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
             overflow: hidden;
             position: relative;
         }
 
-        .page-wrapper canvas {
+        .page-content canvas {
             width: 100%;
             height: 100%;
             object-fit: contain;
             display: block;
+        }
+
+        .page-shadow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(to right, rgba(0,0,0,0.2) 0%, transparent 40%);
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+
+        .page-container.flipping .page-shadow {
+            opacity: 1;
         }
 
         #loading {
@@ -72,7 +117,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 1000;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             padding: 30px 50px;
             border-radius: 15px;
             border: 2px solid #f1c40f;
@@ -176,6 +221,10 @@
                 font-size: 0.75rem;
                 min-width: 80px;
             }
+            .page-content {
+                width: 98%;
+                height: 98%;
+            }
         }
     </style>
 </head>
@@ -183,7 +232,7 @@
 
     <div id="loading">
         <div class="loader"></div>
-        <p style="margin-top: 15px;">📄 Memuat PDF untuk Flipbook...</p>
+        <p style="margin-top: 15px;">📄 Memuat PDF...</p>
         <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Mohon tunggu sebentar</p>
     </div>
 
@@ -209,8 +258,10 @@
         const pageCurrent = document.getElementById('page-current');
         const pageTotal = document.getElementById('page-total');
 
-        let pageFlip = null;
+        let currentPage = 0;
         let totalPages = 0;
+        let isFlipping = false;
+        let pages = [];
 
         async function loadPDF() {
             const pdfjsLib = window['pdfjs-dist/build/pdf'];
@@ -221,11 +272,10 @@
                 totalPages = pdf.numPages;
                 pageTotal.textContent = totalPages;
 
-                // Konversi setiap halaman PDF ke canvas
-                const pages = [];
+                // Render semua halaman
                 for (let i = 1; i <= totalPages; i++) {
                     const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 2.5 });
+                    const viewport = page.getViewport({ scale: 2 });
                     
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -234,29 +284,39 @@
                     
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
                     
-                    // Buat wrapper untuk setiap halaman
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'page-wrapper';
-                    wrapper.appendChild(canvas);
-                    pages.push(wrapper);
+                    // Buat container halaman
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'page-container';
+                    if (i === 1) pageDiv.classList.add('active');
+                    
+                    const content = document.createElement('div');
+                    content.className = 'page-content';
+                    content.appendChild(canvas);
+                    
+                    const shadow = document.createElement('div');
+                    shadow.className = 'page-shadow';
+                    
+                    pageDiv.appendChild(content);
+                    pageDiv.appendChild(shadow);
+                    flipbookContainer.appendChild(pageDiv);
+                    pages.push(pageDiv);
                 }
 
-                // Sembunyikan loading dan tampilkan flipbook
+                // Sembunyikan loading
                 loadingDiv.style.display = 'none';
                 navUI.style.display = 'flex';
-
-                // Inisialisasi flipbook
-                initFlipbook(pages);
+                
+                updateButtons();
 
             } catch (error) {
-                console.error('Error loading PDF:', error);
+                console.error('Error:', error);
                 loadingDiv.innerHTML = `
                     <div style="color:#ff6b6b; padding:20px; max-width: 500px; line-height: 1.8;">
                         <p><b>❌ Gagal memuat PDF</b></p>
                         <p style="font-size: 0.9rem; color: #ccc; text-align: left;">
                             1. Pastikan file <b>presentasi.pdf</b> ada di folder yang sama<br>
                             2. Gunakan <b>Live Server</b> di VS Code<br>
-                            3. Periksa konsol browser untuk detail error
+                            3. Periksa konsol browser (F12) untuk detail
                         </p>
                         <button onclick="location.reload()" style="margin-top:15px; padding:10px 30px; background:#f1c40f; border:none; border-radius:25px; cursor:pointer; font-weight:bold;">
                             🔄 Coba Lagi
@@ -266,100 +326,130 @@
             }
         }
 
-        function initFlipbook(pages) {
-            // Hitung ukuran berdasarkan container
-            const container = document.getElementById('flipbook');
-            const width = container.clientWidth || window.innerWidth;
-            const height = container.clientHeight || window.innerHeight;
-
-            // Tambahkan semua halaman ke container
-            pages.forEach(page => {
-                flipbookContainer.appendChild(page);
+        function goToPage(index) {
+            if (isFlipping || index === currentPage || index < 0 || index >= totalPages) return;
+            
+            isFlipping = true;
+            const direction = index > currentPage ? 'next' : 'prev';
+            const fromPage = pages[currentPage];
+            const toPage = pages[index];
+            
+            // Sembunyikan semua halaman
+            pages.forEach(p => {
+                p.classList.remove('active', 'flipping');
+                p.style.display = 'none';
             });
-
-            // Inisialisasi Page-Flip
-            pageFlip = new St.PageFlip(flipbookContainer, {
-                width: width,
-                height: height,
-                size: 'stretch',
-                minWidth: 100,
-                maxWidth: 3000,
-                minHeight: 100,
-                maxHeight: 3000,
-                showCover: false,
-                maxShadowOpacity: 0.5,
-                mobileScrollSupport: true,
-                clickEventForward: false,
-                useMouseEvents: true,
-                autoSize: true,
-                startPage: 0
-            });
-
-            // Load halaman
-            pageFlip.loadFromHTML(document.querySelectorAll('.page-wrapper'));
-
-            // Event listener saat flip
-            pageFlip.on('flip', (e) => {
-                pageCurrent.textContent = e.data + 1;
+            
+            // Tampilkan halaman tujuan
+            toPage.style.display = 'flex';
+            toPage.classList.add('active');
+            
+            // Animasi flip sederhana
+            if (direction === 'next') {
+                fromPage.style.transform = 'perspective(1500px) rotateY(-10deg) scale(0.95)';
+                fromPage.style.opacity = '0.8';
+            } else {
+                fromPage.style.transform = 'perspective(1500px) rotateY(10deg) scale(0.95)';
+                fromPage.style.opacity = '0.8';
+            }
+            
+            setTimeout(() => {
+                currentPage = index;
+                pageCurrent.textContent = currentPage + 1;
                 updateButtons();
-            });
+                isFlipping = false;
+                
+                // Reset transform halaman sebelumnya
+                fromPage.style.transform = '';
+                fromPage.style.opacity = '';
+                fromPage.style.display = 'none';
+                toPage.style.display = 'flex';
+                toPage.classList.add('active');
+            }, 400);
+        }
 
-            // Event listener saat halaman berubah
-            pageFlip.on('changeState', (e) => {
-                if (e.data === 'user_fold' || e.data === 'flipping') {
-                    // Sedang animasi
-                }
-            });
+        function nextPage() {
+            if (currentPage < totalPages - 1) {
+                goToPage(currentPage + 1);
+            }
+        }
 
-            // Tombol navigasi
-            btnNext.addEventListener('click', () => {
-                if (pageFlip) pageFlip.flipNext();
-            });
-
-            btnPrev.addEventListener('click', () => {
-                if (pageFlip) pageFlip.flipPrev();
-            });
-
-            // Keyboard shortcut
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowRight' || e.key === ' ') {
-                    e.preventDefault();
-                    if (pageFlip && pageFlip.getCurrentPageIndex() < totalPages - 1) {
-                        pageFlip.flipNext();
-                    }
-                } else if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    if (pageFlip && pageFlip.getCurrentPageIndex() > 0) {
-                        pageFlip.flipPrev();
-                    }
-                }
-            });
-
-            // Update tombol setelah inisialisasi
-            setTimeout(updateButtons, 100);
-
-            // Handle resize
-            let resizeTimeout;
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => {
-                    if (pageFlip) {
-                        const w = container.clientWidth;
-                        const h = container.clientHeight;
-                        pageFlip.updateSize(w, h);
-                    }
-                }, 200);
-            });
+        function prevPage() {
+            if (currentPage > 0) {
+                goToPage(currentPage - 1);
+            }
         }
 
         function updateButtons() {
-            if (!pageFlip) return;
-            const current = pageFlip.getCurrentPageIndex();
-            btnPrev.disabled = current <= 0;
-            btnNext.disabled = current >= totalPages - 1;
+            btnPrev.disabled = currentPage <= 0;
+            btnNext.disabled = currentPage >= totalPages - 1;
         }
 
-        // Jalankan loading PDF
+        // Event listeners
+        btnNext.addEventListener('click', nextPage);
+        btnPrev.addEventListener('click', prevPage);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextPage();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevPage();
+            }
+        });
+
+        // Click pada halaman untuk flip
+        document.addEventListener('click', (e) => {
+            const rect = flipbookContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const midX = rect.width / 2;
+            
+            if (x > midX + 50) {
+                nextPage();
+            } else if (x < midX - 50) {
+                prevPage();
+            }
+        });
+
+        // Touch support
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        
+        document.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    nextPage();
+                } else {
+                    prevPage();
+                }
+            }
+        });
+
+        // Handle resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // Re-render halaman saat ini
+                if (pages.length > 0) {
+                    const currentPageDiv = pages[currentPage];
+                    if (currentPageDiv) {
+                        currentPageDiv.style.display = 'flex';
+                        currentPageDiv.classList.add('active');
+                    }
+                }
+            }, 300);
+        });
+
+        // Jalankan
         loadPDF();
     </script>
 </body>
