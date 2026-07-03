@@ -22,26 +22,25 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow-x: hidden;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* Menghilangkan scrollbar browser */
         }
 
         #container {
-            flex: 1;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            max-width: 550px; /* Disesuaikan untuk tampilan satu halaman (portrait) */
-            padding: 20px;
-            margin-bottom: 80px; 
+            padding: 20px; /* Memberi sedikit jarak di tepi layar */
         }
 
         #my-flipbook {
-            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+            box-shadow: 0 0 35px rgba(0,0,0,0.8);
             display: none; 
-            margin: 0 auto;
+            width: 100%;
+            height: 100%;
         }
 
         .page-wrapper {
@@ -58,23 +57,28 @@
             width: 100%;
             height: 100%;
             display: block;
+            object-fit: contain;
         }
 
         #loading {
             color: white;
             text-align: center;
-            margin-top: 50px;
             font-size: 1.1rem;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
         }
 
         .nav-controls {
             position: fixed;
-            bottom: 20px;
+            bottom: 25px;
             display: flex;
             align-items: center;
             gap: 20px;
             background: rgba(0, 0, 0, 0.85);
-            padding: 10px 20px;
+            padding: 8px 20px;
             border-radius: 50px;
             border: 1px solid #f1c40f;
             z-index: 1000;
@@ -85,7 +89,7 @@
             background: #f1c40f;
             color: #000;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 18px;
             border-radius: 25px;
             cursor: pointer;
             font-weight: bold;
@@ -107,8 +111,12 @@
 
         @media (max-width: 600px) {
             .nav-btn {
-                padding: 8px 15px;
+                padding: 6px 12px;
                 font-size: 0.7rem;
+            }
+            .nav-controls {
+                bottom: 15px;
+                gap: 10px;
             }
         }
     </style>
@@ -116,7 +124,7 @@
 <body>
 
     <div id="loading">
-        <p>Sedang menyiapkan file PDF...</p>
+        <p>Sedang menyiapkan presentasi...</p>
     </div>
 
     <div id="container">
@@ -153,14 +161,15 @@
                 const totalPages = pdf.numPages;
                 pageTotal.innerText = totalPages;
 
+                // Mengambil rasio halaman pertama (lebar x tinggi)
                 const firstPage = await pdf.getPage(1);
-                const standardViewport = firstPage.getViewport({ scale: 1.5 });
+                const standardViewport = firstPage.getViewport({ scale: 2 });
                 const pageWidth = standardViewport.width;
                 const pageHeight = standardViewport.height;
 
                 for (let i = 1; i <= totalPages; i++) {
                     const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    const viewport = page.getViewport({ scale: 2 });
 
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'page-wrapper';
@@ -181,11 +190,10 @@
                 console.error(error);
                 loadingText.innerHTML = `
                     <div style="color:#ff6b6b; padding:20px; max-width: 500px; margin: 0 auto; line-height: 1.6;">
-                        <p><b>Gagal memuat dokumen PDF.</b></p>
+                        <p><b>Gagal memuat file presentasi.</b></p>
                         <p style="font-size: 0.9rem; text-align: left; color: #ccc;">
-                            1. Pastikan file <b>presentasi.pdf</b> berada di folder yang sama dengan file HTML ini.<br>
-                            2. Pastikan penulisan nama file sudah sama persis.<br>
-                            3. Gunakan lokal server seperti ekstensi <b>Live Server</b> di VS Code jika dijalankan di komputer lokal agar tidak diblokir oleh kebijakan keamanan browser.
+                            1. Pastikan file presentasi Anda bernama <b>presentasi.pdf</b> dan berada di satu folder dengan file HTML ini.<br>
+                            2. Jika dijalankan di komputer lokal secara langsung, harap gunakan ekstensi <b>Live Server</b> di VS Code agar browser tidak memblokir akses file PDF.
                         </p>
                     </div>`;
             }
@@ -199,14 +207,14 @@
             pageFlip = new St.PageFlip(flipbookContainer, {
                 width: width, 
                 height: height,
-                mode: "portrait", // Diubah ke mode portrait untuk menampilkan 1 halaman saja
-                size: "stretch",
+                mode: "portrait", // Mode portrait menampilkan 1 halaman penuh (slide landscape tunggal)
+                size: "stretch", 
                 minWidth: 100, 
-                maxWidth: 3000, 
+                maxWidth: 4000, 
                 minHeight: 100,
-                maxHeight: 3000, 
+                maxHeight: 4000, 
                 showCover: false, 
-                maxShadowOpacity: 0.2, 
+                maxShadowOpacity: 0.15, 
                 mobileScrollSupport: false,
                 clickEventForward: false, 
                 useMouseEvents: true 
