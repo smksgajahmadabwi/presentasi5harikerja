@@ -21,49 +21,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
-        }
-
-        .header {
-            width: 100%;
-            background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
-            padding: 15px 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center; 
-            z-index: 100;
-        }
-
-        .header-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 1000px; 
-            gap: 15px;
-        }
-
-        .title-container {
-            text-align: center;
-            flex: 1;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 1.4rem;
-            letter-spacing: 1px;
-            color: #f1c40f; 
-            text-transform: uppercase;
-        }
-
-        .header h2 {
-            margin: 5px 0 0 0;
-            font-size: 1.1rem;
-            font-weight: 400;
-            color: #ffffff;
-            opacity: 0.9;
         }
 
         #container {
@@ -72,7 +33,7 @@
             justify-content: center;
             align-items: center;
             width: 100%;
-            max-width: 1000px; /* Diperlebar agar mode landscape 2 halaman muat dengan proporsional */
+            max-width: 550px; /* Disesuaikan untuk tampilan satu halaman (portrait) */
             padding: 20px;
             margin-bottom: 80px; 
         }
@@ -145,16 +106,6 @@
         }
 
         @media (max-width: 600px) {
-            .header h1 {
-                font-size: 1rem;
-                letter-spacing: 0.5px;
-            }
-            .header h2 {
-                font-size: 0.8rem;
-            }
-            .header-container {
-                gap: 8px;
-            }
             .nav-btn {
                 padding: 8px 15px;
                 font-size: 0.7rem;
@@ -163,15 +114,6 @@
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <div class="header-container">
-            <div class="title-container">
-                <h1>SMK Gajah Mada Banyuwangi</h1>
-                <h2>Presentasi Interactive Flipbook</h2>
-            </div>
-        </div>
-    </div>
 
     <div id="loading">
         <p>Sedang menyiapkan file PDF...</p>
@@ -190,7 +132,6 @@
     </div>
 
     <script>
-        // Pastikan nama file dan ekstensi (besar/kecil huruf) sudah sama persis
         const pdfUrl = 'presentasi.pdf'; 
         
         const flipbookContainer = document.getElementById('my-flipbook');
@@ -212,7 +153,6 @@
                 const totalPages = pdf.numPages;
                 pageTotal.innerText = totalPages;
 
-                // Mengambil spesifikasi dimensi dari halaman pertama agar rasio flipbook sesuai dokumen
                 const firstPage = await pdf.getPage(1);
                 const standardViewport = firstPage.getViewport({ scale: 1.5 });
                 const pageWidth = standardViewport.width;
@@ -220,7 +160,7 @@
 
                 for (let i = 1; i <= totalPages; i++) {
                     const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 1.5 }); // Skala rendering canvas
+                    const viewport = page.getViewport({ scale: 1.5 });
 
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'page-wrapper';
@@ -243,9 +183,9 @@
                     <div style="color:#ff6b6b; padding:20px; max-width: 500px; margin: 0 auto; line-height: 1.6;">
                         <p><b>Gagal memuat dokumen PDF.</b></p>
                         <p style="font-size: 0.9rem; text-align: left; color: #ccc;">
-                            1. Pastikan file <b>presentasi.pdf</b> berada di dalam direktori folder yang sama dengan file HTML ini.<br>
-                            2. Pastikan penulisan nama file sudah sama persis (perhatikan huruf besar/kecil).<br>
-                            3. Jika Anda membuka file HTML ini secara lokal langsung dari folder (protokol file:///), harap gunakan lokal server (seperti ekstensi <b>Live Server</b> di VS Code, XAMPP, atau mengunggahnya ke hosting) agar tidak diblokir oleh kebijakan keamanan browser.
+                            1. Pastikan file <b>presentasi.pdf</b> berada di folder yang sama dengan file HTML ini.<br>
+                            2. Pastikan penulisan nama file sudah sama persis.<br>
+                            3. Gunakan lokal server seperti ekstensi <b>Live Server</b> di VS Code jika dijalankan di komputer lokal agar tidak diblokir oleh kebijakan keamanan browser.
                         </p>
                     </div>`;
             }
@@ -259,7 +199,7 @@
             pageFlip = new St.PageFlip(flipbookContainer, {
                 width: width, 
                 height: height,
-                mode: "landscape", 
+                mode: "portrait", // Diubah ke mode portrait untuk menampilkan 1 halaman saja
                 size: "stretch",
                 minWidth: 250, 
                 maxWidth: width, 
